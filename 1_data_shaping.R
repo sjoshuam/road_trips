@@ -10,10 +10,12 @@
 
 ##  environment set-up
 remove(list = objects())
-options(digits = 6, scipen = 2) # , expressions = 2^9
+options(digits = 6, scipen = 2)
 library(lintr) #lint("1_data_shaping.R")
-library(tidyverse)
 library(xml2)
+library(tidyverse)
+library(mapproj)
+
 
 ## READ IN DATA ================================================================
 
@@ -147,11 +149,19 @@ travels$group <- travels$group %>%
 travels$order <- 1 + travels$order - tapply(
   travels$order, travels$group, min)[as.character(travels$group)]
 
+## generate states for polygons
+travels$state <- travels$placemark %>%
+  str_extract_all(" [A-Z][A-Z][A-Z]*") %>%
+  lapply(unique) %>%
+  lapply(sort) %>%
+  sapply(paste, collapse = "/") %>%
+  str_remove_all(" ")
+
 ## stanardize organizational schemes
 us_map$theme <- "map"
 travels$theme <- travels$folder1
 
-us_map$polygon <- "polygon"
+us_map$polygon <- "Polygon"
 
 us_map$level1 <- us_map$state
 travels$level1 <- if_else(
@@ -167,20 +177,101 @@ travels$level2 <- if_else(
 us_map$level2 <- NA
 
 us_map <- select(us_map, long, lat, group, order,
-  theme, level1, level2, polygon)
+  theme, state, level1, level2, polygon)
 travels <- select(travels, long, lat, group, order,
-  theme, level1, level2, polygon)
+  theme, state, level1, level2, polygon)
 
 ## remove travel marks outside project bounds
 travels <- filter(travels, !str_detect(travels$level1, ", [A-Z][a-z]+"))
 
+## merge data
+travels <- bind_rows(travels, us_map)
+remove(us_map)
+
 ## HARMONIZE CITY DATA =========================================================
 
-## PROJECT COORDINATES - AK/HI/PR ==============================================
+harmony <- travels %>%
+  filter(polygon == "Point") %>%
+  group_by(level1) %>%
+  summarize(
+    "long_mean" = mean(long),
+    "lat_mean"  = mean(lat)
+    )
 
-## PROJECT COORDINATES - CONTIGUOUS STATES =====================================
+travels <- travels %>%
+  left_join(harmony, by = "level1") %>%
+  mutate(
+    lat  = if_else(polygon == "Point", lat_mean,  lat),
+    long = if_else(polygon == "Point", long_mean, long),
+    ) %>%
+  select(-lat_mean, -long_mean)
+remove(harmony)
+
+## PROJECT COORDINATES =====================================
+
+## write tidy/pipe-esque projection function
+tidy_projection <- function(dat, filt, proj, orient, param = NULL) {
+  coordinates <- dat %>% filter(filt) %>% select(long, lat)
+  coordinates <- mapproject(
+    x = coordinates$long, y = coordinates$lat,
+    projection = proj, orientation = orient, parameters = param
+    )
+  dat[filt, "x"] <- coordinates$x
+  dat[filt, "y"] <- coordinates$y
+  dat
+  }
+
+## project coordinates
+travels <- travels %>%
+  mutate("x" = as.numeric(NA), "y" = as.numeric(NA)) %>%
+  tidy_projection(filt = !(travels$state %in% c("AK", "HI", "PR")),
+    proj = "lambert", orient = c(90, 0, -98.6), param = c(25.1, 49.4)) %>%
+  tidy_projection(filt = travels$state == "AK",
+    proj = "lambert", orient = c(90, 0, -152.5), param = c(54.8, 71.4)) %>%
+  tidy_projection(filt = travels$state == "HI",
+    proj = "mercator", orient = c(90, 0, -156.7)) %>%
+  tidy_projection(filt = travels$state == "PR",
+    proj = "mercator", orient = c(90, 0, -66.4))
+
+## scale alaska
+scale_down <- function(coordinate, size_factor = 0.5 ) {
+  result <- coordinate - mean(coordinate)
+  result * size_factor + mean(coordinate)
+}
+travels <- travels %>%
+  mutate(x = if_else(state == "AK", scale_down(x, 0.25), x),
+    y = if_else(state == "AK", scale_down(y, 0.25), y)) %>%
+  mutate(x = if_else(state %in% c("HI", "PR"), scale_down(x, 0.5), x),
+    y = if_else(state %in% c("HI", "PR"), scale_down(y, 0.5), y))
+
+## position OCONUS
+reposition_state <- function(dat, moving_state, ref_state, nudge = c(0, 0)) {
+  
+  ## calculate how must to adjust state coordinates
+  adjustments <- dat %>%
+    filter(state %in% c(moving_state, ref_state)) %>%
+    select(state, x, y) %>%
+    group_by("moving" = state == moving_state) %>%
+    summarize(x_adj = min(x), y_adj = min(y))
+  adjustments <- as_vector(adjustments[1, 2:3] - adjustments[2, 2:3])
+  
+  ## adjust state coordinates
+  dat <- mutate(dat,
+    x = if_else(state == moving_state, x + adjustments[1] + nudge[1], x),
+    y = if_else(state == moving_state, y + adjustments[2] + nudge[2], y),
+    )
+  dat
+  
+  }
+
+travels <- travels %>%
+  reposition_state("AK", c("CA", "TX")) %>%
+  reposition_state("HI", c("UT", "TX") ) %>%
+  reposition_state("PR", c("NE", "FL"), c(-0.015, -0.005) )
 
 ## TABULATE PROGRESS STATISTICS ================================================
+
+
 
 ## EXPORT DATA =================================================================
 
