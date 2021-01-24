@@ -270,9 +270,24 @@ travels <- travels %>%
   reposition_state("PR", c("NE", "FL"), c(-0.015, -0.005) )
 
 ## TABULATE PROGRESS STATISTICS ================================================
+unique_count <- function(x) {
+  length(unique(na.omit(x)))
+  }
 
-
+progress <- travels %>%
+  filter(polygon == "Point",
+    level1 %in% travels$level1[travels$theme == "Wishlist"]) %>%
+  select(state, level1, theme) %>%
+  mutate(state = recode(state, CAN = as.character(NA))) %>%
+  group_by(theme) %>%
+  summarize(
+    "state" = unique_count(state),
+    "city"  = unique_count(level1)
+    )
 
 ## EXPORT DATA =================================================================
+
+save(travels, file = "B_Intermediates/travels.RData")
+save(progress, file = "B_Intermediates/progress.RData")
 
 ##########==========##########==========##########==========##########==========
