@@ -11,7 +11,6 @@
 ##  environment set-up
 remove(list = objects())
 options(digits = 6, scipen = 2)
-library(lintr) #lint("1_data_shaping.R")
 library(xml2)
 library(tidyverse)
 library(mapproj)
@@ -141,7 +140,7 @@ travels$placemark <- str_remove_all(travels$placemark, "Placemark∆")
 ## generate polygon groups and orders for travels
 travels <- travels %>% mutate(
   "group" = paste(folder1, folder2, folder3, placemark),
-  "order"= seq(nrow(travels))
+  "order" = seq(nrow(travels))
   )
 travels$group <- travels$group %>%
   factor(levels = unique(travels$group)) %>%
@@ -234,7 +233,7 @@ travels <- travels %>%
     proj = "mercator", orient = c(90, 0, -66.4))
 
 ## scale alaska
-scale_down <- function(coordinate, size_factor = 0.5 ) {
+scale_down <- function(coordinate, size_factor = 0.5) {
   result <- coordinate - mean(coordinate)
   result * size_factor + mean(coordinate)
 }
@@ -246,7 +245,7 @@ travels <- travels %>%
 
 ## position OCONUS
 reposition_state <- function(dat, moving_state, ref_state, nudge = c(0, 0)) {
-  
+
   ## calculate how must to adjust state coordinates
   adjustments <- dat %>%
     filter(state %in% c(moving_state, ref_state)) %>%
@@ -254,20 +253,20 @@ reposition_state <- function(dat, moving_state, ref_state, nudge = c(0, 0)) {
     group_by("moving" = state == moving_state) %>%
     summarize(x_adj = min(x), y_adj = min(y))
   adjustments <- as_vector(adjustments[1, 2:3] - adjustments[2, 2:3])
-  
+
   ## adjust state coordinates
   dat <- mutate(dat,
     x = if_else(state == moving_state, x + adjustments[1] + nudge[1], x),
     y = if_else(state == moving_state, y + adjustments[2] + nudge[2], y),
     )
   dat
-  
+
   }
 
 travels <- travels %>%
   reposition_state("AK", c("CA", "TX")) %>%
-  reposition_state("HI", c("UT", "TX") ) %>%
-  reposition_state("PR", c("NE", "FL"), c(-0.015, -0.005) )
+  reposition_state("HI", c("UT", "TX")) %>%
+  reposition_state("PR", c("NE", "FL"), c(-0.015, -0.005))
 
 ## TABULATE PROGRESS STATISTICS ================================================
 unique_count <- function(x) {
@@ -287,7 +286,7 @@ progress <- travels %>%
 
 ## EXPORT DATA =================================================================
 
-save(travels, file = "B_Intermediates/travels.RData")
-save(progress, file = "B_Intermediates/progress.RData")
+saveRDS(travels, file = "B_Intermediates/travels.RData")
+saveRDS(progress, file = "B_Intermediates/progress.RData")
 
 ##########==========##########==========##########==========##########==========
