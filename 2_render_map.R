@@ -80,12 +80,12 @@ scale_factor <- 1 / max(c(travels$x, travels$y))
 travels[, c("x", "y")] <- travels[, c("x", "y")] * scale_factor
 remove(scale_factor)
 
-## calculate coordinates for each plot panel
+## calculate coordinates for each plot panel (leaving a little room for titles)
 traveled_routes <- standard_routes <- travels[, c("x", "y")]
-traveled_routes$x <- (traveled_routes$x * 28.403) + 0.5
-traveled_routes$y <- (traveled_routes$y * 28.403) + 6.0
-standard_routes$x <- (standard_routes$x * 8.115)  + 0.5
-standard_routes$y <- (standard_routes$y * 8.115)  + 0.5
+traveled_routes$x <- (traveled_routes$x * (28.403 - 0.84)) + 0.5
+traveled_routes$y <- (traveled_routes$y * (28.403 - 0.84)) + 6.0
+standard_routes$x <- (standard_routes$x * (8.115 - 0.24))  + 0.5
+standard_routes$y <- (standard_routes$y * (8.115 - 0.24))  + 0.5
 
 colnames(traveled_routes) <- paste0("traveled_", colnames(traveled_routes) )
 colnames(standard_routes) <- paste0("standard_", colnames(standard_routes) )
@@ -116,7 +116,7 @@ city_route_dist <- tibble(
   "route_of_city" = city_route_dist) %>%
   mutate(
     "route_of_city" = if_else(
-      City %in% c("San Juan PR", "Honolulu HI", "Vancouver CAN", "Bismarck ND"),
+      City %in% c("San Juan PR", "Honolulu HI"),
       "Not Currently On A Route", route_of_city)
     )
 travels <- left_join(travels, city_route_dist, by = c("level1" = "City"))
@@ -155,13 +155,13 @@ legend_data <- travels %>%
 
 ## specify legend colors
 i <- legend_data$legend == "Preplanned Routes"
-legend_color <- seq(from = 15, to = 375, length.out = sum(i) + 1)[-(sum(i) + 1)]
+legend_color <- seq(from = 10, to = 370, length.out = sum(i) + 1)[-(sum(i) + 1)]
 legend_color <- legend_color - (legend_color %/% 360)
 legend_color <- hcl(h = legend_color, c = 100, l = 40)
 
-legend_data$color <- c(grab_color("land", "dark"), grab_color("sea", "dark"),
+legend_data$color <- c(grab_color("sea", "dark"), grab_color("land", "dark"),
   legend_color)
-legend_data$fill <- c(grab_color("land", "light"), grab_color("sea", "dark"),
+legend_data$fill <- c(grab_color("sea", "dark"), grab_color("land", "light"),
   legend_color)
 
 i <- which(legend_data$level1 == "Not Currently On A Route")
@@ -170,7 +170,15 @@ legend_data[i, c("color", "fill")] <- hcl(c = 0, l = 60)
 
 remove(legend_color)
 
-##
+## calculate title locations
+title_locations <- travels %>%
+  filter(state == "OH", polygon == "Polygon") %>%
+  select(traveled_x, standard_x) %>%
+  summarise(
+    traveled_x = mean(range(traveled_x)),
+    standard_x = mean(range(standard_x))
+    ) %>%
+  unlist()
 
 ## define master size scalar
 master_size <- 25.4 * 0.05
@@ -231,11 +239,11 @@ remove(cities)
 ## render traveled routes panel title
 travel_poster <- travel_poster + geom_text(
   data = tibble(NA),
-  x = (0.5 + 28.903) / 2,
+  x = title_locations["traveled_x"],
   y = 23.5,
   label = "Roadtrips So Far",
   color = grab_color("sea", "dark"),
-  size = 24, fontface = "bold", hjust = 0.45, vjust = 1
+  size = 24, fontface = "bold", hjust = 0.5, vjust = 1
   )
 
 ## PANEL 3: STANDARD ROUTES ====================================================
@@ -286,11 +294,11 @@ remove(cities)
 ## render inset panel title
 travel_poster <- travel_poster + geom_text(
   data = tibble(NA),
-  x = (8.615 + 0.5) / 2,
+  x = title_locations["standard_x"],
   y = 5.5,
-  label = "Ten Preplanned Roadtrip Routes",
+  label = "Preplanned Routes",
   color = grab_color("sea", "dark"),
-  size = 8, fontface = "bold", hjust = 0.45
+  size = 8, fontface = "bold", hjust = 0.5
   )
 
 
@@ -360,7 +368,7 @@ travel_poster <- travel_poster + geom_text(
     data = tibble(NA),
     x = (9.115 + 35.5) / 2,
     y = unique(progress_bars$ymax_city) + 1.0,
-    label = "Progress Towards Visiting 104 Metropolitan Areas Across the US and Canada",
+    label = "Progress Towards Visiting 108 Metropolitan Areas Across the US and Canada",
     color = grab_color("sea", "dark"),
     hjust = 0.5, fontface = "bold", size = 16
   )
@@ -373,7 +381,7 @@ remove(progress, progress_bars)
 ## render legend text
 travel_poster <- travel_poster + geom_text(
     data = filter(legend_data, legend == "Preplanned Routes"),
-    mapping = aes(x = unique(x) - 0.75, y = max(y) - mean(diff(y)) * 1.5),
+    mapping = aes(x = unique(x) - 0.75, y = max(y) - mean(diff(y)) * 1.25),
     hjust = 0,
     fontface = "bold", size = 12,
     label = "Key: Preplanned Routes",
@@ -386,7 +394,7 @@ travel_poster <- travel_poster + geom_text(
     color = grab_color("sea", "dark")
   ) + geom_text(
     data = filter(legend_data, legend != "Preplanned Routes"),
-    mapping = aes(x = unique(x) - 0.75, y = max(y) - mean(diff(y)) * 1.5),
+    mapping = aes(x = unique(x) - 0.75, y = max(y) - mean(diff(y)) * 1.25),
     hjust = 0,
     fontface = "bold", size = 12,
     label = "Key: Roadtrips So Far",
@@ -411,22 +419,21 @@ travel_poster <- travel_poster + geom_point(
 
 travel_poster <- travel_poster + geom_text(
   data = summarize(legend_data,
-    x = min(x) - 0.75, y = min(y) + mean(diff(y)) * 1.5),
+    x = min(x) - 0.75, y = min(y) + mean(diff(y)) * 1.0),
   mapping = aes(x = x, y = y),
   label = paste(
     "This poster depicts information about my roadtrips.",
     "",
     "The \"Roadtrips So Far\" panel maps where I have traveled",
     "so far, as well as the other metropolitan areas I strive",
-    "to visit. Taken together, I aim to see 104 metropolitan",
+    "to visit. Taken together, I aim to see 108 metropolitan",
     "areas across the US and Canada.",
     "",
-    "  The \"Preplanned Routes\" panel outline ten plans for",
-    "two-week roadtrips. Taken together, those ten routes pass",
-    "through 100 of the 104 metropolitan areas",
+    "  The \"Preplanned Routes\" panel outline eleven plans for",
+    "two-week roadtrips. Taken together, those routes pass",
+    "through 106 of the 108 metropolitan areas",
     "",
-    "  The \"Progress\" panel measures my progress towards",
-    "visiting all 104 areas.",
+    "  The \"Progress\" panel shows my progress visiting all areas",
     "",
     "  When visiting an area, I generally plan a walking route",
     "through the core city, striving to see downtowns, historic",
@@ -447,9 +454,9 @@ travel_poster <- travel_poster + geom_text(
 
 ## render panel dividers and remove automatic legend
 dividing_lines <- tibble(
-  x = c(8.615 + 0.25, 29.403 - 0.25, 0.5),
+  x = c(8.615 + 0.25 - 0.12, 29.403 - 0.25 - 0.42, 0.5),
   y = c(5.5 + 0.25, 23.5, 5.5 + 0.25),
-  xend = c(8.615 + 0.25, 29.403 - 0.25, 35.5),
+  xend = c(8.615 + 0.25 - 0.12, 29.403 - 0.25 - 0.42, 35.5),
   yend = c(0.5, 6 - 0.25, 5.5 + 0.25)
   )
 travel_poster <- travel_poster + geom_segment(data = dividing_lines,
