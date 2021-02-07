@@ -207,24 +207,37 @@ travel_poster <- travel_poster +
 explanatory_text <- c(
   "This poster depicts information about my roadtrips.",
   "",
-  "The \"Roadtrips So Far\" panel maps where I have traveled so far, as well as the other metropolitan areas I strive to visit. Taken together, I aim to see 108 metropolitan areas across the US and adjacent areas of Canada.",
+  "The \"Roadtrips So Far\" panel maps where I have traveled so far, as well ",
+  "as the other metropolitan areas I strive to visit. Taken together, I aim ",
+  "to see 108 metropolitan areas across the US and adjacent areas of Canada.",
+  "The \"Preplanned Routes\" panel outlines eleven plans for two-week ",
+  "roadtrips. Taken together, those routes pass through 106 of the 108 ",
+  "metropolitan areas.  The \"Progress\" panel shows my progress visiting all ",
+  "areas.",
   "",
-  "The \"Preplanned Routes\" panel outlines eleven plans for two-week roadtrips. Taken together, those routes pass through 106 of the 108 metropolitan areas.",
+  "When visiting an area, I typically plan a 5+ mile walking route through ",
+  "the core city, striving to see downtowns, historic districts, and other ",
+  "noteworthy sites.  I may also plan side driving excursions to see remote ",
+  "sites.",
   "",
-  "The \"Progress\" panel shows my progress visiting all areas.",
+  "The selection criteria for the metropolitan areas favored those that held ",
+  "state capitals, state's largest city, significant historic / cultural ",
+  "sites, or otherwise underrepresented geographic areas.",
   "",
-  "When visiting an area, I generally plan a walking route through the core city, striving to see downtowns, historic districts, and other noteworthy sites.  I may also plan side driving excursions to see remote sites, especially UNESCO World Heritage Sites.",
-  "",
-  "The selection criteria for the metropolitan areas favored those that held state capitals, state's largest city, significant historic / cultural sites, or otherwise underrepresented geographic areas."
+  "The R code underlying this project is publicly available on GitHub at: ",
+  "https://github.com/sjoshuam/road_trips"
     )
-explanatory_text <- strwrap(explanatory_text, width = 80)
-explanatory_text <- paste(explanatory_text, collapse = "\n")
+explanatory_text <- tapply(explanatory_text, cumsum(!nzchar(explanatory_text)),
+  paste, collapse = "") %>%
+  str_wrap(width = 80) %>%
+  paste(collapse = "\n\n")
+
 
 travel_poster <- travel_poster +
   geom_text(
     data = filter(poster_dims, str_detect(element, "key_inset")),
   mapping = aes(x = x_start, y = y_start),
-  label = explanatory_text,
+  label = explanatory_text, fontface = "bold",
   size = 7, hjust = 0, vjust = 0, color = grab_color("sea", "dark")
   )
 remove(explanatory_text)
@@ -285,7 +298,7 @@ travel_poster <- travel_poster + geom_text(
     ),
   label = "Roadtrips So Far",
   color = grab_color("sea", "dark"),
-  size = 14, fontface = "bold", vjust= 0
+  size = 24, fontface = "bold", vjust= 0
   )
 
 ## PANEL 3: STANDARD ROUTES ====================================================
@@ -341,7 +354,7 @@ travel_poster <- travel_poster +
     ),
   label = "Preplanned Routes",
   color = grab_color("sea", "dark"),
-  size = 14, fontface = "bold", vjust= 0
+  size = 18, fontface = "bold", vjust= 0
   )
 
 ## PANEL 2: PROGRESS BAR =======================================================
@@ -454,7 +467,7 @@ travel_poster <- travel_poster + geom_text(
       ),
     label = "Progress Towards Visiting 108 Metropolitan Areas Across the US and Canada",
     color = grab_color("sea", "dark"),
-    hjust = 0.5, fontface = "bold", size = 14, vjust = 0
+    hjust = 0.5, fontface = "bold", size = 18, vjust = 0
   )
 remove(progress, progress_bars)
 
@@ -492,6 +505,11 @@ travel_poster <- travel_poster +
 ## EXPORT TO PDF ===============================================================
 
 pdf("C_Outputs/road_trip_poster.pdf", width = 36, height = 24)
+travel_poster
+graphics.off()
+
+png("C_Outputs/road_trips.png", width = 36, height = 24, units = "in",
+  res = 72)
 travel_poster
 graphics.off()
 
