@@ -208,6 +208,10 @@ remove(harmony)
 
 ## PROJECT COORDINATES =====================================
 
+## flatten routes/cities that are too far north
+i <- travels$state == "CAN" & travels$lat > 52.2
+travels[i, "lat"] <- 52.2
+
 ## write tidy/pipe-esque projection function
 tidy_projection <- function(dat, filt, proj, orient, param = NULL) {
   coordinates <- dat %>% filter(filt) %>% select(long, lat)
