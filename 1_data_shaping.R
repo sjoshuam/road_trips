@@ -99,6 +99,11 @@ travels <- travels %>%
 remove(refine_coordinates)
 
 ## parse kml hierarchy
+temp <- travels$name %>%
+  str_split("[.]") %>%
+  simplify2array() #%>%
+  #t()
+
 travels$name <- travels$name %>%
   str_split("[.]") %>%
   simplify2array() %>%

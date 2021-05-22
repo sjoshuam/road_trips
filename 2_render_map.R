@@ -22,6 +22,10 @@ travels  <- readRDS("B_Intermediates/travels.RData")
 progress <- readRDS("B_Intermediates/progress.RData")
 poster_dims <- read_xlsx("A_Inputs/poster_dims.xlsx")
 
+## expression raw progress statistics
+wished_cities <- progress %>% filter(theme == "Wishlist") %>% pull("city")
+progress
+
 ## PREPARE FOUNDATIONAL PLOT DATA ==============================================
 
 ## convert master dimension dataset to non-tibble format (for easier lookups)
@@ -209,9 +213,11 @@ explanatory_text <- c(
   "",
   "The \"Roadtrips So Far\" panel maps where I have traveled so far, as well ",
   "as the other metropolitan areas I strive to visit. Taken together, I aim ",
-  "to see 111 metropolitan areas across the US and adjacent areas of Canada. ",
+  "to see ", wished_cities,
+  " metropolitan areas across the US and adjacent areas of Canada. ",
   "The \"Preplanned Routes\" panel outlines thirteen plans for two-week ",
-  "roadtrips. Taken together, those routes pass through 109 of the 111 ",
+  "roadtrips. Taken together, those routes pass through ",
+  wished_cities - 2, " of the ", wished_cities, " ",
   "metropolitan areas.  The \"Progress\" panel shows my progress visiting all ",
   "areas.",
   "",
@@ -464,11 +470,11 @@ travel_poster <- travel_poster + geom_text(
       x = (x_start + x_end) / 2,
       y = (y_start + y_end) / 2
       ),
-    label = "Progress Towards Visiting 111 Metropolitan Areas Across the US and Canada",
+    label = "Progress Towards Visiting Listed US / Canadian Metropolitan Areas",
     color = grab_color("sea", "dark"),
     hjust = 0.5, fontface = "bold", size = 18, vjust = 0
   )
-remove(progress, progress_bars)
+remove(progress_bars)
 
 
 ## MAP STYLING =================================================================
